@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>💬 Real-Time Chat</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.1/stomp.min.js"></script>
-
     <style>
         :root {
           --bg-color: #f2f5f9;
@@ -33,25 +33,28 @@
         }
 
         .chat-container {
-          max-width: 600px;
-          margin: 50px auto;
+          max-width: 100%;
+          width: 100%;
+          max-width: 650px;
+          margin: 40px auto;
           background-color: var(--card-bg);
           border-radius: 16px;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
           padding: 24px;
         }
 
         #chat {
-          height: 300px;
+          height: 320px;
           overflow-y: auto;
-          border: 1px solid #dee2e6;
           padding: 15px;
           border-radius: 8px;
           background: var(--chat-bg);
+          margin-bottom: 20px;
+          border: 1px solid #dee2e6;
         }
 
         .chat-message {
-          margin-bottom: 15px;
+          margin-bottom: 12px;
           display: flex;
           align-items: flex-start;
         }
@@ -81,66 +84,63 @@
           color: var(--text-color);
         }
 
-        .form-control:focus {
-          box-shadow: none;
-          border-color: var(--avatar-bg);
-        }
-
         .btn-send {
           background-color: var(--avatar-bg);
           color: white;
-        }
-
-        .theme-switch {
-          display: flex;
-          justify-content: end;
-          align-items: center;
+          width: 100%;
         }
 
         .form-check-input:checked {
           background-color: var(--avatar-bg);
           border-color: var(--avatar-bg);
         }
+
+        @media (max-width: 576px) {
+          #chat {
+            height: 250px;
+          }
+
+          .chat-bubble {
+            max-width: 90%;
+          }
+        }
     </style>
 </head>
 <body>
-<div class="chat-container">
+<div class="chat-container container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="m-0">💬 Real-Time Chat</h3>
-        <div class="theme-switch">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="themeToggle" />
-                <label class="form-check-label" for="themeToggle">🌙</label>
-            </div>
+        <h4 class="m-0">💬 Real-Time Chat</h4>
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="themeToggle" />
+            <label class="form-check-label" for="themeToggle">🌙</label>
         </div>
     </div>
 
     <div id="chat"></div>
 
-    <div class="row mt-3">
-        <div id="nameInputWrapper" class="col-md-6 mb-2">
+    <div class="row g-2 mt-3">
+        <div id="nameInputWrapper" class="col-12 col-md-6">
             <input id="senderInput" type="text" class="form-control" placeholder="Enter your name..." />
         </div>
-
-        <div class="col-md-6 mb-2">
+        <div class="col-12 col-md-6">
             <input id="messageInput" type="text" class="form-control" placeholder="Type a message..." />
         </div>
-        <div class="col-12 d-grid">
-            <button id="sendMessage" class="btn btn-send">Send Message</button>
+        <div class="col-12">
+            <button id="sendMessage" class="btn btn-send">Send</button>
         </div>
     </div>
 </div>
 
 <script>
     let stompClient = null;
-    let senderName=null;
+    let senderName = null;
 
     function setConnected(connected) {
       document.getElementById("sendMessage").disabled = !connected;
     }
 
     function connect() {
-      var socket = new SockJS("/chat");
+      const socket = new SockJS("/chat");
       stompClient = Stomp.over(socket);
       stompClient.connect({}, function (frame) {
         setConnected(true);
@@ -179,32 +179,38 @@
     }
 
     function sendMessage() {
-  if (!senderName) {
-    const inputName = document.getElementById("senderInput").value.trim();
-    if (!inputName) return;
-    senderName = inputName;
+      if (!senderName) {
+        const inputName = document.getElementById("senderInput").value.trim();
+        if (!inputName) return;
+        senderName = inputName;
+        document.getElementById("nameInputWrapper").style.display = "none";
+      }
 
-    // Hide name input
-    document.getElementById("nameInputWrapper").style.display = "none";
-  }
+      const content = document.getElementById("messageInput").value.trim();
+      if (!content) return;
 
-  const content = document.getElementById("messageInput").value.trim();
-  if (!content) return;
+      const chatMessage = { sender: senderName, content };
+      stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage));
+      document.getElementById("messageInput").value = "";
+    }
 
-  const chatMessage = { sender: senderName, content };
-  stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage));
-  document.getElementById("messageInput").value = "";
-}
-
-
+    // Send on Enter (message)
     document.getElementById("messageInput").addEventListener("keypress", function (e) {
       if (e.key === "Enter") sendMessage();
+    });
+
+    // Enter on name input also triggers send
+    document.getElementById("senderInput").addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        sendMessage();
+        document.getElementById("messageInput").focus();
+      }
     });
 
     document.getElementById("sendMessage").onclick = sendMessage;
     window.onload = connect;
 
-    // 🌙 Dark mode toggle
+    // Dark Mode Toggle
     document.getElementById("themeToggle").addEventListener("change", function () {
       document.body.classList.toggle("dark", this.checked);
     });
