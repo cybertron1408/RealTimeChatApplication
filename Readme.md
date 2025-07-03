@@ -9,6 +9,8 @@ A simple, responsive, real-time chat application built using **Spring Boot**, **
 ## 🚀 Features
 
 - 🔴 Real-time communication using WebSocket & STOMP
+- ✍️ Typing status indicator
+- 🔔 Message notification sound
 - 🌙 Dark mode toggle
 - 📱 Responsive UI (mobile & desktop)
 - 👤 Auto-generated avatar initials
@@ -19,7 +21,6 @@ A simple, responsive, real-time chat application built using **Spring Boot**, **
 
 ## 🚀 Live Demo
 Access the app: [https://realtimechatapplication-llte.onrender.com/chat](https://realtimechatapplication-llte.onrender.com/chat)
-
 
 ---
 
@@ -32,6 +33,15 @@ Access the app: [https://realtimechatapplication-llte.onrender.com/chat](https:/
 | Backend   | Spring Boot, WebSocket, Spring MVC      |
 
 ---
+
+## 🛠️ Coming Soon / Ideas
+
+- ✅ Typing status ✔️ *(Completed)*
+- ✅ Message notification sound ✔️ *(Completed)*
+- 🖼️ User-uploaded avatars
+- 🗑️ Chat history clearing
+- 🌍 Multi-room support
+
 
 ## 📦 Project Structure
 
