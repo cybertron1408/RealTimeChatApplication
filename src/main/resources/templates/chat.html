@@ -49,7 +49,7 @@
           padding: 15px;
           border-radius: 8px;
           background: var(--chat-bg);
-          margin-bottom: 20px;
+          margin-bottom: 10px;
           border: 1px solid #dee2e6;
         }
 
@@ -107,6 +107,7 @@
     </style>
 </head>
 <body>
+
 <div class="chat-container container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="m-0">💬 Real-Time Chat</h4>
@@ -117,6 +118,7 @@
     </div>
 
     <div id="chat"></div>
+    <div id="typingIndicator" style="min-height: 24px; font-style: italic; color: gray;"></div>
 
     <div class="row g-2 mt-3">
         <div id="nameInputWrapper" class="col-12 col-md-6">
@@ -131,80 +133,126 @@
     </div>
 </div>
 
+<audio id="notificationSound" src="/sounds/message.mp3" preload="auto"></audio>
+
 <script>
     let stompClient = null;
     let senderName = null;
+    let isTyping = false;
+    let typingTimeout;
+
+    // Sound setup
+    const messageSound = new Audio("/sounds/message.mp3");
 
     function setConnected(connected) {
-      document.getElementById("sendMessage").disabled = !connected;
+        document.getElementById("sendMessage").disabled = !connected;
     }
 
     function connect() {
-      const socket = new SockJS("/chat");
-      stompClient = Stomp.over(socket);
-      stompClient.connect({}, function (frame) {
-        setConnected(true);
-        stompClient.subscribe("/topic/messages", function (message) {
-          showMessage(JSON.parse(message.body));
+        const socket = new SockJS("/chat");
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            setConnected(true);
+            stompClient.subscribe("/topic/messages", function (message) {
+                const msg = JSON.parse(message.body);
+                showMessage(msg);
+
+                // ✅ Play sound when message received (if not self)
+                if (msg.sender !== senderName) {
+                    messageSound.play().catch(e => console.warn("Sound error:", e));
+                }
+            });
+
+            // ✅ Typing indicator
+            stompClient.subscribe("/topic/typing", function (typingMsg) {
+                showTyping(JSON.parse(typingMsg.body));
+            });
         });
-      });
     }
 
     function getInitials(name) {
-      return name
-        .split(" ")
-        .map((n) => n[0].toUpperCase())
-        .join("")
-        .slice(0, 2);
+        return name
+            .split(" ")
+            .map((n) => n[0].toUpperCase())
+            .join("")
+            .slice(0, 2);
     }
 
     function showMessage(message) {
-      const chat = document.getElementById("chat");
-      const messageElement = document.createElement("div");
-      messageElement.className = "chat-message";
+        const chat = document.getElementById("chat");
+        const messageElement = document.createElement("div");
+        messageElement.className = "chat-message";
 
-      const avatar = document.createElement("div");
-      avatar.className = "chat-avatar";
-      avatar.textContent = getInitials(message.sender || "U");
+        const avatar = document.createElement("div");
+        avatar.className = "chat-avatar";
+        avatar.textContent = getInitials(message.sender || "U");
 
-      const bubble = document.createElement("div");
-      bubble.className = "chat-bubble";
-      bubble.innerHTML = `<strong>${message.sender || "User"}:</strong> ${message.content}`;
+        const bubble = document.createElement("div");
+        bubble.className = "chat-bubble";
+        bubble.innerHTML = `<strong>${message.sender || "User"}:</strong> ${message.content}`;
 
-      messageElement.appendChild(avatar);
-      messageElement.appendChild(bubble);
+        messageElement.appendChild(avatar);
+        messageElement.appendChild(bubble);
 
-      chat.appendChild(messageElement);
-      chat.scrollTop = chat.scrollHeight;
+        chat.appendChild(messageElement);
+        chat.scrollTop = chat.scrollHeight;
+
+        // Remove typing indicator
+        const typing = document.getElementById("typing");
+        if (typing) typing.remove();
     }
 
     function sendMessage() {
-      if (!senderName) {
-        const inputName = document.getElementById("senderInput").value.trim();
-        if (!inputName) return;
-        senderName = inputName;
-        document.getElementById("nameInputWrapper").style.display = "none";
-      }
+        if (!senderName) {
+            const inputName = document.getElementById("senderInput").value.trim();
+            if (!inputName) return;
+            senderName = inputName;
+            document.getElementById("nameInputWrapper").style.display = "none";
+        }
 
-      const content = document.getElementById("messageInput").value.trim();
-      if (!content) return;
+        const content = document.getElementById("messageInput").value.trim();
+        if (!content) return;
 
-      const chatMessage = { sender: senderName, content };
-      stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage));
-      document.getElementById("messageInput").value = "";
+        const chatMessage = { sender: senderName, content };
+        stompClient.send("/app/sendMessage", {}, JSON.stringify(chatMessage));
+        document.getElementById("messageInput").value = "";
     }
 
-    // Send on Enter (message)
+    function showTyping(typingInfo) {
+        if (typingInfo.sender === senderName) return;
+
+        let typingDiv = document.getElementById("typing");
+        if (!typingDiv) {
+            typingDiv = document.createElement("div");
+            typingDiv.id = "typing";
+            typingDiv.className = "chat-message";
+            typingDiv.innerHTML = `<em>${typingInfo.sender} is typing...</em>`;
+            document.getElementById("chat").appendChild(typingDiv);
+        }
+
+        // Auto-remove after 3 seconds
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            if (typingDiv) typingDiv.remove();
+        }, 3000);
+    }
+
+    function notifyTyping() {
+        if (!senderName) return;
+        stompClient.send("/app/typing", {}, JSON.stringify({ sender: senderName }));
+    }
+
+    // Events
     document.getElementById("messageInput").addEventListener("keypress", function (e) {
-      if (e.key === "Enter") sendMessage();
+        if (e.key === "Enter") sendMessage();
+        else notifyTyping();
     });
 
-    // Enter on name input also triggers send
     document.getElementById("senderInput").addEventListener("keypress", function (e) {
-      if (e.key === "Enter") {
-        sendMessage();
-        document.getElementById("messageInput").focus();
-      }
+        if (e.key === "Enter") {
+            sendMessage();
+            document.getElementById("messageInput").focus();
+        }
     });
 
     document.getElementById("sendMessage").onclick = sendMessage;
@@ -212,8 +260,9 @@
 
     // Dark Mode Toggle
     document.getElementById("themeToggle").addEventListener("change", function () {
-      document.body.classList.toggle("dark", this.checked);
+        document.body.classList.toggle("dark", this.checked);
     });
 </script>
+
 </body>
 </html>
