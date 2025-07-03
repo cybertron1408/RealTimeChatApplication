@@ -17,9 +17,9 @@ A simple, responsive, real-time chat application built using **Spring Boot**, **
 
 ---
 
-## 📷 Preview
+## 🚀 Live Demo
+Access the app: [https://realtimechatapplication-llte.onrender.com/chat](https://realtimechatapplication-llte.onrender.com/chat)
 
-![Chat App Demo Screenshot](preview.png)
 
 ---
 
